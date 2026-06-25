@@ -1,182 +1,324 @@
 <script setup lang="ts">
-import { onMounted, ref } from "vue";
-import {
-  fetchSyncStatus,
-  restoreFromCloud,
-  type SyncStatusResponse,
-  triggerCloudBackup,
-} from "@/api/backup";
+import { ref, onMounted } from 'vue'
+import { 
+  fetchBackupsList, 
+  createLocalBackup, 
+  restoreFromBackup, 
+  deleteBackupFile, 
+  getBackupDownloadUrl,
+  uploadBackupFile,
+  type LocalBackup 
+} from '@/api/backup'
 
-const syncData = ref<SyncStatusResponse | null>(null);
-const isProcessing = ref(false);
-const errorMessage = ref<string | null>(null);
+const backups = ref<LocalBackup[]>([])
+const isProcessing = ref(false)
+const fileInput = ref<HTMLInputElement | null>(null)
 
-// 1. Завантаження поточного статусу синхронізації з бекенду
-const loadSyncStatus = async () => {
+// 1. Отримання актуального списку копій
+const loadBackups = async () => {
   try {
-    errorMessage.value = null;
-    syncData.value = await fetchSyncStatus();
+    backups.value = await fetchBackupsList()
   } catch (error) {
-    errorMessage.value = "Не вдалося отримати статус хмари";
+    console.error('Не вдалося завантажити список бекапів')
   }
-};
+}
 
-// 2. Обробник кнопки «Завантажити в хмару»
-const handleUpload = async () => {
+// 2. Створення нового бекапу кнопки
+const handleCreateBackup = async () => {
   try {
-    isProcessing.value = true;
-    await triggerCloudBackup();
-    await loadSyncStatus(); // Перевіряємо статус заново
+    isProcessing.value = true
+    await createLocalBackup()
+    await loadBackups()
   } catch (error) {
-    alert("Помилка завантаження бекапу");
+    alert('Помилка створення резервної копії')
   } finally {
-    isProcessing.value = false;
+    isProcessing.value = false
   }
-};
+}
 
-// 3. Обробник кнопки «Оновити з хмари»
-const handleDownload = async () => {
-  if (!syncData.value?.drive_id) return;
-  if (
-    !confirm(
-      "Ви впевнені? Поточна локальна база буде повністю замінена версією з хмари!",
-    )
-  )
-    return;
+// 3. Відновлення бази з обраного файлу
+const handleRestore = async (filename: string) => {
+  if (!confirm(`Ви впевнені? Поточна база даних буде повністю замінена архівом: ${filename}`)) return
+  try {
+    isProcessing.value = true
+    await restoreFromBackup(filename)
+    window.location.reload() // Перезавантажуємо сторінку для відображення відновлених дошок
+  } catch (error) {
+    alert('Помилка відновлення даних')
+  } finally {
+    isProcessing.value = false
+  }
+}
+
+// 4. Видалення архіву з диска
+const handleDelete = async (filename: string) => {
+  if (!confirm(`Видалити файл бекапу ${filename}?`)) return
+  try {
+    await deleteBackupFile(filename)
+    await loadBackups()
+  } catch (error) {
+    alert('Не вдалося видалити файл')
+  }
+}
+
+// 5. Функція обробки завантаження файлу з комп'ютера (Міграція)
+const handleFileUpload = async (event: Event) => {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
 
   try {
-    isProcessing.value = true;
-    await restoreFromCloud(syncData.value.drive_id);
-    window.location.reload(); // Перезавантажуємо сторінку для оновлення всіх дошок
+    isProcessing.value = true
+    await uploadBackupFile(file)
+    await loadBackups() // Оновлюємо список
+    alert('Файл успішно імпортовано в систему бекапів!')
   } catch (error) {
-    alert("Помилка відновлення бази з хмари");
+    alert(error instanceof Error ? error.message : 'Помилка завантаження файлу')
   } finally {
-    isProcessing.value = false;
+    isProcessing.value = false
+    if (fileInput.value) fileInput.value.value = '' // Очищаємо інпут
   }
-};
+}
+
+// Допоміжна функція переведення байтів у мегабайти
+const formatSize = (bytes: number) => {
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
+}
 
 onMounted(() => {
-  loadSyncStatus();
-});
+  loadBackups()
+})
 </script>
 
 <template>
-  <div class="sync-widget" :class="syncData?.status?.toLowerCase() || 'loading'">
-    <div class="widget-info">
-      <!-- Кольоровий статус-маркер -->
-      <span class="status-indicator"></span>
-      <div class="status-text">
-        <span class="status-title">{{ syncData?.message || 'Перевірка хмари...' }}</span>
-        <small v-if="syncData?.cloud_backup_at" class="status-date">
-          Хмара від: {{ new Date(syncData.cloud_backup_at).toLocaleString() }}
-        </small>
+  <div class="backup-manager-box">
+    <header class="manager-header">
+      <div class="header-title-block">
+        <h3>📦 Локальний менеджер копій</h3>
+        <small class="offline-badge">Offline-First</small>
       </div>
-    </div>
-
-    <!-- Кнопки керування залежно від статусу -->
-    <div v-if="syncData && !isProcessing" class="widget-actions">
-      <button 
-        v-if="syncData.status === 'NEED_UPLOAD' || syncData.status === 'SYNCED'" 
-        class="btn-sync upload"
-        @click="handleUpload"
-      >
-        ☁️ Завантажити в хмару
-      </button>
       
-      <button 
-        v-if="syncData.status === 'NEED_DOWNLOAD'" 
-        class="btn-sync download"
-        @click="handleDownload"
-      >
-        📥 Оновити з хмари
-      </button>
+      <div class="header-actions">
+        <!-- Прихований нативний інпут для вибору файлу з ПК -->
+        <input 
+          ref="fileInput"
+          type="file" 
+          accept=".zip" 
+          style="display: none" 
+          @change="handleFileUpload"
+        />
+        <button class="btn-action upload-pc" :disabled="isProcessing" @click="fileInput?.click()">
+          📥 Імпортувати .zip з ПК
+        </button>
+        <button class="btn-action create" :disabled="isProcessing" @click="handleCreateBackup">
+          ➕ Створити копію бази
+        </button>
+      </div>
+    </header>
+
+    <!-- Відображення списку створених архівів -->
+    <div v-if="backups.length > 0" class="backups-list-wrapper">
+      <table class="backups-table">
+        <thead>
+          <tr>
+            <th>Назва файлу архіву</th>
+            <th>Розмір</th>
+            <th>Дата створення</th>
+            <th class="actions-col">Дії</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-for="backup in backups" :key="backup.filename">
+            <td class="filename-cell"><code>{{ backup.filename }}</code></td>
+            <td>{{ formatSize(backup.size_bytes) }}</td>
+            <td>{{ new Date(backup.created_at).toLocaleString() }}</td>
+            <td class="actions-cell">
+              <!-- Пряме посилання на скачування файлу у браузер Windows -->
+              <a :href="getBackupDownloadUrl(backup.filename)" class="action-link download" title="Скачати на ПК">
+                💾 Скачати
+              </a>
+              <button class="action-btn restore" @click="handleRestore(backup.filename)" title="Відновити базу з цього файлу">
+                🔄 Відновити
+              </button>
+              <button class="action-btn delete" @click="handleDelete(backup.filename)" title="Видалити архів">
+                ❌
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
     </div>
 
-    <div v-else-if="isProcessing" class="widget-loading">Обробка...</div>
-    <div v-if="errorMessage" class="widget-error">{{ errorMessage }}</div>
+    <div v-else class="empty-backups-text">
+      У вас поки немає збережених резервних копій бази даних.
+    </div>
   </div>
 </template>
 
 <style lang="scss" scoped>
-.sync-widget {
+.backup-manager-box {
+  background-color: var(--bg-surface);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 32px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.manager-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background-color: var(--bg-surface);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  padding: 12px 16px;
-  margin-bottom: 24px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
-
-  // Кольорові стилі для різних станів хмари
-  &.synced .status-indicator { background-color: #28a745; }
-  &.need_upload .status-indicator { background-color: #ffc107; }
-  &.need_download .status-indicator { background-color: #007bff; }
-  &.loading .status-indicator { background-color: var(--text-muted); }
+  margin-bottom: 16px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--border-color);
 }
 
-.widget-info {
+.header-title-block {
   display: flex;
   align-items: center;
   gap: 12px;
+
+  h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+  }
 }
 
-.status-indicator {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-  flex-shrink: 0;
-}
-
-.status-text {
-  display: flex;
-  flex-direction: column;
-}
-
-.status-title {
-  font-size: 14px;
-  font-weight: 500;
-  color: var(--text-primary);
-}
-
-.status-date {
+.offline-badge {
+  background-color: rgba(40, 167, 69, 0.1);
+  color: #28a745;
   font-size: 11px;
-  color: var(--text-muted);
-  margin-top: 2px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+  border: 1px solid rgba(40, 167, 69, 0.2);
 }
 
-.btn-sync {
-  border: 1px solid transparent;
-  padding: 6px 12px;
+.header-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.btn-action {
+  padding: 8px 14px;
   border-radius: 6px;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
+  border: 1px solid transparent;
   transition: filter 0.2s;
 
-  &:hover {
+  &:hover:not(:disabled) {
     filter: brightness(0.9);
   }
 
-  &.upload {
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.create {
     background-color: var(--text-primary);
     color: var(--bg-main);
   }
 
-  &.download {
-    background-color: #007bff;
-    color: white;
+  &.upload-pc {
+    background-color: transparent;
+    border-color: var(--border-color);
+    color: var(--text-primary);
+
+    &:hover {
+      background-color: var(--bg-main);
+    }
   }
 }
 
-.widget-loading, .widget-error {
-  font-size: 13px;
-  color: var(--text-muted);
+.backups-list-wrapper {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
 }
 
-.widget-error {
-  color: #dc3545;
+.backups-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+  text-align: left;
+
+  th, td {
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--border-color);
+  }
+
+  th {
+    background-color: var(--bg-main);
+    color: var(--text-muted);
+    font-weight: 500;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+}
+
+.filename-cell code {
+  background-color: var(--bg-main);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: monospace;
+  color: var(--text-primary);
+}
+
+.actions-col {
+  text-align: right;
+}
+
+.actions-cell {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+}
+
+.action-link {
+  color: #007bff;
+  text-decoration: none;
+  font-weight: 500;
+  
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 0;
+
+  &.restore {
+    color: #28a745;
+    &:hover { text-decoration: underline; }
+  }
+
+  &.delete {
+    opacity: 0.6;
+    &:hover { opacity: 1; }
+  }
+}
+
+.empty-backups-text {
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 13px;
+  padding: 24px 0;
 }
 </style>
