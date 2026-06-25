@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, status, HTTPException
+from pydantic import BaseModel
 from app.services.backup import BackupService
 from app.services.google_drive import GoogleDriveService
 from app.services.sync import SyncService
@@ -37,3 +38,36 @@ def get_sync_status(session: Session = Depends(get_session)):
         return status_info
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Не вдалося перевірити статус синхронізації: {str(e)}")
+
+
+class RestoreRequest(BaseModel):
+    drive_id: str
+
+
+@router.post("/restore", status_code=status.HTTP_200_OK)
+def restore_from_cloud(restore_data: RestoreRequest):
+    """Ендпоінт для скачування бекапу з хмари та повного оновлення локальної бази даних."""
+    import os
+
+    try:
+        # 1. Створюємо шлях для тимчасового скачування архіву
+        temp_zip_path = os.path.abspath("temp_backups/cloud_download.zip")
+
+        # 2. Скачуємо файл через Google Drive Service
+        drive_service = GoogleDriveService()
+        drive_service.download_file_from_drive(restore_data.drive_id, temp_zip_path)
+
+        # 3. Відновлюємо базу за допомогою BackupService
+        success = BackupService.restore_database_from_zip(temp_zip_path)
+
+        # Видаляємо тимчасовий завантажений zip-файл, щоб не накопичувати сміття
+        if os.path.exists(temp_zip_path):
+            os.remove(temp_zip_path)
+
+        if not success:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Файл архіву виявився пошкодженим або не містить файлу бази даних.")
+
+        return {"status": "success", "message": "Локальну базу даних успішно оновлено до версії з хмари"}
+
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Не вдалося виконати відновлення з хмари: {str(e)}")

@@ -1,5 +1,6 @@
+import io
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaFileUpload
+from googleapiclient.http import MediaFileUpload, MediaIoBaseDownload
 from loguru import logger
 
 from app.services.google_auth import get_google_credentials
@@ -124,4 +125,27 @@ class GoogleDriveService:
             return {"drive_id": latest_file["id"], "filename": latest_file["name"], "cloud_created_at": latest_file["createdTime"]}
         except Exception as e:
             logger.error(f"Помилка отримання інфо про бекап з Диску: {str(e)}")
+            raise e
+
+    def download_file_from_drive(self, drive_id: str, local_dest_path: str) -> bool:
+        """Скачує файл з Google Диску за його ID та зберігає за вказаним локальним шляхом."""
+        try:
+            logger.info(f"Запуск скачування файлу з Google Диску (ID: {drive_id})...")
+
+            # 1. Запитуємо потік даних від Google Drive API
+            request = self.service.files().get_media(fileId=drive_id)
+
+            # 2. Відкриваємо локальний файл для запису байтів
+            with io.FileIO(local_dest_path, "wb") as fh:
+                downloader = MediaIoBaseDownload(fh, request)
+                done = False
+                while not done:
+                    status, done = downloader.next_chunk()
+                    if status:
+                        logger.info(f"Прогрес завантаження: {int(status.progress() * 100)}%")
+
+            logger.success(f"Файл успішно скачано з хмари та збережено як: {local_dest_path}")
+            return True
+        except Exception as e:
+            logger.error(f"Помилка скачування файлу з Google Диску: {str(e)}")
             raise e

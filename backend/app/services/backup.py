@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timezone
 from pathlib import Path
 import shutil
@@ -70,3 +71,43 @@ class BackupService:
 
         logger.success(f"Резервну копію успішно створено локально за шляхом: {final_zip_path}")
         return str(final_zip_path.absolute())
+
+    @staticmethod
+    def restore_database_from_zip(zip_file_path: str) -> bool:
+        """Розпаковує .zip архів та повністю замінює поточний файл робочої бази даних."""
+        from app.core.db import engine
+
+        db_url = settings.DATABASE_URL
+        if not db_url.startswith("sqlite:///"):
+            raise ValueError("Відновлення з файлів підтримується тільки для SQLite.")
+
+        db_filename = db_url.replace("sqlite:///", "")
+        db_path = Path(db_filename).absolute()
+
+        logger.info(f"Запуск процесу відновлення бази даних з архіву: {zip_file_path}")
+
+        if not os.path.exists(zip_file_path):
+            logger.error(f"Файл архіву не знайдено за шляхом: {zip_file_path}")
+            return False
+
+        # 1. Примусово закриваємо всі активні з'єднання з SQLite у пулі FastAPI,
+        # інакше ОС заблокує процес заміни файлу бази
+        engine.dispose()
+
+        # 2. Розпаковуємо .zip архів
+        with zipfile.ZipFile(zip_file_path, "r") as zipf:
+            # Перевіряємо, чи є всередині файлу наш основний файл бази даних
+            if db_path.name not in zipf.namelist():
+                logger.error(f"Архів не містить валідного файлу бази даних {db_path.name}")
+                return False
+
+            # Розпаковуємо файл бази безпосередньо з заміною старого файлу
+            zipf.extract(db_path.name, path=db_path.parent)
+
+            # Якщо в архіві були файли журналів - розпаковуємо і їх
+            for filename in zipf.namelist():
+                if filename.endswith("-wal") or filename.endswith("-shm"):
+                    zipf.extract(filename, path=db_path.parent)
+
+        logger.success("Базу даних успішно відновлено та синхронізовано з версією з хмари!")
+        return True
