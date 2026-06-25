@@ -1,11 +1,14 @@
 from sqlmodel import Session, SQLModel, create_engine
+from app.core.config import settings
 
-# Ім'я файлу бази даних SQLite, який створиться автоматично в папці backend
-sqlite_file_name = "kanban.db"
-sqlite_url = f"sqlite:///{sqlite_file_name}"
+# Зчитуємо URL бази даних безпосередньо з налаштувань .env
+sqlite_url = settings.DATABASE_URL
 
-# check_same_thread=False потрібен тільки для SQLite, бо FastAPI працює в кілька потоків
-connect_args = {"check_same_thread": False}
+# Конфігурація потоків потрібна тільки якщо ми використовуємо SQLite
+connect_args = {}
+if sqlite_url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+
 engine = create_engine(sqlite_url, connect_args=connect_args)
 
 
