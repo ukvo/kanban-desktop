@@ -1,93 +1,100 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { 
-  fetchBackupsList, 
-  createLocalBackup, 
-  restoreFromBackup, 
-  deleteBackupFile, 
+import { onMounted, ref } from "vue";
+import {
+  createLocalBackup,
+  deleteBackupFile,
+  fetchBackupsList,
   getBackupDownloadUrl,
+  type LocalBackup,
+  restoreFromBackup,
   uploadBackupFile,
-  type LocalBackup 
-} from '@/api/backup'
+} from "@/api/backup";
 
-const backups = ref<LocalBackup[]>([])
-const isProcessing = ref(false)
-const fileInput = ref<HTMLInputElement | null>(null)
+const backups = ref<LocalBackup[]>([]);
+const isProcessing = ref(false);
+const fileInput = ref<HTMLInputElement | null>(null);
 
 // 1. Отримання актуального списку копій
 const loadBackups = async () => {
   try {
-    backups.value = await fetchBackupsList()
+    backups.value = await fetchBackupsList();
   } catch (error) {
-    console.error('Не вдалося завантажити список бекапів')
+    console.error("Не вдалося завантажити список бекапів");
   }
-}
+};
 
 // 2. Створення нового бекапу кнопки
 const handleCreateBackup = async () => {
   try {
-    isProcessing.value = true
-    await createLocalBackup()
-    await loadBackups()
+    isProcessing.value = true;
+    await createLocalBackup();
+    await loadBackups();
   } catch (error) {
-    alert('Помилка створення резервної копії')
+    alert("Помилка створення резервної копії");
   } finally {
-    isProcessing.value = false
+    isProcessing.value = false;
   }
-}
+};
 
 // 3. Відновлення бази з обраного файлу
 const handleRestore = async (filename: string) => {
-  if (!confirm(`Ви впевнені? Поточна база даних буде повністю замінена архівом: ${filename}`)) return
+  if (
+    !confirm(
+      `Ви впевнені? Поточна база даних буде повністю замінена архівом: ${filename}`,
+    )
+  )
+    return;
   try {
-    isProcessing.value = true
-    await restoreFromBackup(filename)
-    window.location.reload() // Перезавантажуємо сторінку для відображення відновлених дошок
+    isProcessing.value = true;
+    await restoreFromBackup(filename);
+    window.location.reload(); // Перезавантажуємо сторінку для відображення відновлених дошок
   } catch (error) {
-    alert('Помилка відновлення даних')
+    alert("Помилка відновлення даних");
   } finally {
-    isProcessing.value = false
+    isProcessing.value = false;
   }
-}
+};
 
 // 4. Видалення архіву з диска
 const handleDelete = async (filename: string) => {
-  if (!confirm(`Видалити файл бекапу ${filename}?`)) return
+  if (!confirm(`Видалити файл бекапу ${filename}?`)) return;
   try {
-    await deleteBackupFile(filename)
-    await loadBackups()
+    await deleteBackupFile(filename);
+    await loadBackups();
   } catch (error) {
-    alert('Не вдалося видалити файл')
+    alert("Не вдалося видалити файл");
   }
-}
+};
 
 // 5. Функція обробки завантаження файлу з комп'ютера (Міграція)
 const handleFileUpload = async (event: Event) => {
-  const target = event.target as HTMLInputElement
-  const file = target.files?.[0]
-  if (!file) return
+  const target = event.target as HTMLInputElement;
+  const file = target.files?.[0];
+  if (!file) return;
 
   try {
-    isProcessing.value = true
-    await uploadBackupFile(file)
-    await loadBackups() // Оновлюємо список
-    alert('Файл успішно імпортовано в систему бекапів!')
+    isProcessing.value = true;
+    await uploadBackupFile(file);
+    await loadBackups(); // Оновлюємо список
+    alert("Файл успішно імпортовано в систему бекапів!");
   } catch (error) {
-    alert(error instanceof Error ? error.message : 'Помилка завантаження файлу')
+    alert(
+      error instanceof Error ? error.message : "Помилка завантаження файлу",
+    );
   } finally {
-    isProcessing.value = false
-    if (fileInput.value) fileInput.value.value = '' // Очищаємо інпут
+    isProcessing.value = false;
+    if (fileInput.value) fileInput.value.value = ""; // Очищаємо інпут
   }
-}
+};
 
 // Допоміжна функція переведення байтів у мегабайти
 const formatSize = (bytes: number) => {
-  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
-}
+  return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
+};
 
 onMounted(() => {
-  loadBackups()
-})
+  loadBackups();
+});
 </script>
 
 <template>

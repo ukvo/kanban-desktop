@@ -10,9 +10,14 @@ const { theme, toggleTheme } = useTheme();
     <header class="app-header">
       <h1>Персональна Kanban Дошка</h1>
       
-      <button class="theme-toggle-btn" @click="toggleTheme">
-        Режим: {{ theme === 'light' ? '☀️ Світлий' : '🌙 Темний' }}
-      </button>
+      <div class="header-actions">
+        <!-- Кнопка переходу до архівів -->
+        <RouterLink to="/backups" class="nav-btn">🗄️ Архів копій</RouterLink>
+        
+        <button class="theme-toggle-btn" @click="toggleTheme">
+          Режим: {{ theme === 'light' ? '☀️ Світлий' : '🌙 Темний' }}
+        </button>
+      </div>
     </header>
 
     <!-- Тут автоматично рендериться поточна активна сторінка (зараз це HomeView) -->
@@ -52,6 +57,28 @@ const { theme, toggleTheme } = useTheme();
 
   &:hover {
     filter: brightness(0.9);
+  }
+}
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-btn {
+  color: var(--text-primary);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 6px;
+  background-color: var(--bg-surface);
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: var(--bg-main);
   }
 }
 </style>

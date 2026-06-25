@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from "vue-router";
+import BackupView from "@/views/BackupView.vue";
 import BoardView from "@/views/BoardView.vue";
 import HomeView from "@/views/HomeView.vue";
 
@@ -15,6 +16,11 @@ const router = createRouter({
       name: "board",
       component: BoardView,
       props: true, // Дозволяє отримувати :id як звичайний пропс у компоненті
+    },
+    {
+      path: "/backup",
+      name: "backup",
+      component: BackupView,
     },
   ],
 });

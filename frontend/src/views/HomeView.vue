@@ -1,7 +1,6 @@
 <script setup lang="ts">
 import { onMounted, ref } from "vue";
 import { createProject, fetchProjects, type Project } from "@/api/project";
-import CloudSyncWidget from "@/components/CloudSyncWidget.vue";
 import ProjectModal from "@/components/ProjectModal.vue";
 
 const projects = ref<Project[]>([]);
@@ -45,8 +44,6 @@ onMounted(() => {
 
 <template>
   <section class="projects-section">
-
-     <CloudSyncWidget />
 
     <div class="section-header">
       <h2>Ваші Kanban-дошки</h2>
