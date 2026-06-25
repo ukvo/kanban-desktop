@@ -1,0 +1,29 @@
+// Дефолтна (Світла) тема
+:root,
+[data-theme="light"] {
+  --bg-main: #f8f9fa;
+  --bg-surface: #ffffff; // Колір фону колонок та карток
+  --border-color: #dee2e6;
+
+  --text-primary: #212529;
+  --text-muted: #6c757d;
+
+  // Кольори пріоритетів задач
+  --priority-low: #28a745;
+  --priority-medium: #ffc107;
+  --priority-high: #dc3545;
+}
+
+// Темна тема
+[data-theme="dark"] {
+  --bg-main: #121212;
+  --bg-surface: #1e1e1e;
+  --border-color: #2d2d2d;
+
+  --text-primary: #f8f9fa;
+  --text-muted: #a0a0a0;
+
+  --priority-low: #2ea74a;
+  --priority-medium: #ffca2c;
+  --priority-high: #ff6b6b;
+}

@@ -1,4 +1,4 @@
-#### Запуск бакенду  
+### Запуск бакенду  
 ```bash
 uv run uvicorn main:app --reload
 ```
@@ -32,6 +32,25 @@ uv run alembic upgrade head
 
 ```bash
 uv add google-auth-oauthlib google-api-python-client
+```
+
+### Frontend  
+
+```bash
+cd ~/kanban-desktop/frontend
+bun create vite . --template vue-ts
+bun add -d @biomejs/biome sass
+bunx @biomejs/biome init
+```
+
+###### Перевірка  
+```bash
+bunx @biomejs/biome check --write .
+```
+
+##### Автоматичне виправлення  
+```bash
+bunx @biomejs/biome migrate --write
 ```
 
 ---  
