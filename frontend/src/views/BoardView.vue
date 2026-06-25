@@ -3,39 +3,42 @@ import { computed, onMounted, ref } from "vue";
 import { RouterLink, useRoute } from "vue-router";
 import { fetchStatuses, type Status } from "@/api/status";
 import {
+  createTask,
   fetchPriorityLabels,
   fetchTasksByProject,
   type Task,
 } from "@/api/task";
+import TaskModal from "@/components/TaskModal.vue"; // <--- Імпортуємо наш новий компонент
 
 const route = useRoute();
 const projectId = Number(route.params.id);
 
 const columns = ref<Status[]>([]);
 const tasks = ref<Task[]>([]);
+const priorityLabels = ref<Record<number, string>>({});
+
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 
-// Мапа текстових назв для рівнів пріоритету
-const priorityLabels = ref<Record<number, string>>({});
+// Стани для керування модальним вікном створення задачі
+const isTaskModalOpen = ref(false);
+const targetStatusId = ref<number | null>(null);
 
-// Функція паралельного завантаження колонок та задач
 const loadBoardData = async () => {
   try {
     isLoading.value = true;
     errorMessage.value = null;
 
-    // 3. Додаємо третій паралельний запит у Promise.all
     const [statusesResponse, tasksResponse, prioritiesResponse] =
       await Promise.all([
         fetchStatuses(),
         fetchTasksByProject(projectId),
-        fetchPriorityLabels(), // <--- Скачуємо довідник з бекенду
+        fetchPriorityLabels(),
       ]);
 
     columns.value = statusesResponse;
     tasks.value = tasksResponse;
-    priorityLabels.value = prioritiesResponse; // <--- Записуємо дані з бази
+    priorityLabels.value = prioritiesResponse;
   } catch (error) {
     errorMessage.value =
       error instanceof Error ? error.message : "Не вдалося завантажити дошку";
@@ -44,19 +47,45 @@ const loadBoardData = async () => {
   }
 };
 
-/**
- * Важлива логіка: групуємо задачі за ID колонки (status_id).
- * Vue автоматично перераховує цей розподіл при будь-якій зміні масиву задач.
- */
+// Функція, яка відкриває модалку і запам'ятовує, для якої колонки створюється задача
+const openCreateTaskModal = (statusId: number) => {
+  targetStatusId.value = statusId;
+  isTaskModalOpen.value = true;
+};
+
+// Обробник відправки форми створення задачі
+const handleCreateTask = async (data: {
+  title: string;
+  description: string;
+  priority: number;
+}) => {
+  if (targetStatusId.value === null) return;
+
+  try {
+    const newTask = await createTask({
+      project_id: projectId,
+      status_id: targetStatusId.value,
+      title: data.title,
+      description: data.description,
+      priority: data.priority,
+    });
+
+    // Реактивно додаємо нову задачу на початок загального масиву
+    tasks.value.unshift(newTask);
+  } catch (error) {
+    alert(
+      error instanceof Error ? error.message : "Не вдалося створити задачу",
+    );
+  }
+};
+
 const tasksByColumn = computed(() => {
   const grouped: Record<number, Task[]> = {};
 
-  // Ініціалізуємо порожні масиви для кожної існуючої колонки
   for (const col of columns.value) {
     grouped[col.id] = [];
   }
 
-  // Розподіляємо задачі за їхнім статусом
   for (const task of tasks.value) {
     if (grouped[task.status_id]) {
       grouped[task.status_id].push(task);
@@ -83,13 +112,15 @@ onMounted(() => {
     <div v-else class="kanban-board">
       <div v-for="column in columns" :key="column.id" class="kanban-column">
         <header class="column-header">
-          <h3>{{ column.name }}</h3>
-          <!-- Динамічно рахуємо кількість задач у цій колонці -->
-          <span class="task-count">{{ tasksByColumn[column.id]?.length || 0 }}</span>
+          <div class="header-left">
+            <h3>{{ column.name }}</h3>
+            <span class="task-count">{{ tasksByColumn[column.id]?.length || 0 }}</span>
+          </div>
+          <!-- Кнопка плюс для швидкого створення задачі в цій колонці -->
+          <button class="btn-add-task" @click="openCreateTaskModal(column.id)" title="Додати задачу">+</button>
         </header>
 
         <div class="column-body">
-          <!-- Рендеримо картки задач, якщо вони є в цій колонці -->
           <template v-if="tasksByColumn[column.id] && tasksByColumn[column.id].length > 0">
             <div 
               v-for="task in tasksByColumn[column.id]" 
@@ -106,11 +137,18 @@ onMounted(() => {
             </div>
           </template>
           
-          <!-- Якщо задач в колонці немає -->
           <div v-else class="empty-column-text">Немає задач</div>
         </div>
       </div>
     </div>
+
+    <!-- Компонент модального вікна для задач -->
+    <TaskModal 
+      :is-open="isTaskModalOpen"
+      :priorities="priorityLabels"
+      @close="isTaskModalOpen = false"
+      @submit="handleCreateTask"
+    />
   </div>
 </template>
 
@@ -165,6 +203,12 @@ onMounted(() => {
   padding: 16px;
   border-bottom: 1px solid var(--border-color);
 
+  .header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
   h3 {
     margin: 0;
     font-size: 16px;
@@ -180,6 +224,23 @@ onMounted(() => {
     padding: 2px 8px;
     border-radius: 20px;
     border: 1px solid var(--border-color);
+  }
+}
+
+.btn-add-task {
+  background: none;
+  border: none;
+  font-size: 20px;
+  color: var(--text-muted);
+  cursor: pointer;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: background-color 0.2s, color 0.2s;
+
+  &:hover {
+    background-color: var(--bg-main);
+    color: var(--text-primary);
   }
 }
 
@@ -199,7 +260,7 @@ onMounted(() => {
   border-radius: variables.$card-radius;
   padding: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
-  border-left: 4px solid var(--border-color); // Дефолтна ліва рамка
+  border-left: 4px solid var(--border-color);
   transition: transform 0.2s, box-shadow 0.2s;
   cursor: pointer;
 
@@ -221,13 +282,12 @@ onMounted(() => {
     color: var(--text-muted);
     line-height: 1.4;
     display: -webkit-box;
-    -webkit-line-clamp: 2; // Обрізає опис до двох рядків на дошці
+    -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
 }
 
-// Динамічне фарбування лівої рамки карти залежно від її пріоритету з CSS-змінних
 .kanban-card.priority-1 { border-left-color: var(--priority-low); }
 .kanban-card.priority-2 { border-left-color: var(--priority-medium); }
 .kanban-card.priority-3 { border-left-color: var(--priority-high); }
