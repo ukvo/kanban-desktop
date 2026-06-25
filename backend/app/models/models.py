@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import List, Optional
+
 from sqlmodel import Field, Relationship, SQLModel
 
 
@@ -14,7 +15,7 @@ class TimestampModel(SQLModel):
 class Project(TimestampModel, table=True):
     """Таблиця проектів (Контексти дошок)"""
 
-    __tablename__ = "projects"
+    __tablename__ = "projects"  # type: ignore
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True, nullable=False)
@@ -29,7 +30,7 @@ class Project(TimestampModel, table=True):
 class Status(SQLModel, table=True):
     """Таблиця колонок / статусів на Kanban-дошці"""
 
-    __tablename__ = "statuses"
+    __tablename__ = "statuses"  # type: ignore
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(nullable=False)
@@ -43,7 +44,7 @@ class Status(SQLModel, table=True):
 class Task(TimestampModel, table=True):
     """Центральна таблиця карток задач"""
 
-    __tablename__ = "tasks"
+    __tablename__ = "tasks"  # type: ignore
 
     id: Optional[int] = Field(default=None, primary_key=True)
     title: str = Field(nullable=False)
@@ -77,7 +78,7 @@ class Task(TimestampModel, table=True):
 class Subtask(TimestampModel, table=True):
     """Таблиця пунктів чек-ліста (підзадач)"""
 
-    __tablename__ = "subtasks"
+    __tablename__ = "subtasks"  # type: ignore
 
     id: Optional[int] = Field(default=None, primary_key=True)
     text: str = Field(nullable=False)

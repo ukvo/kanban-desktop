@@ -14,12 +14,16 @@ dependencies = [
 ]
 
 [tool.ruff]
-# Вмикаємо перевірку стилю коду та автоматичне виправлення імпортів
-select = ["E", "F", "I", "W"]
-ignore = []
+#line-length = 88
+line-length = 95
 
-# Довжина рядка за стандартом Black/Ruff
-line-length = 88
+[tool.ruff.lint]
+# Вмикаем перевірку стилю (E, W), помилок (F) та сортування імпортів (I)
+select = ["E", "F", "I", "W"]
+
+# Ігнор деяких повідомлень
+ignore = ["I001"]
+
 
 [tool.ruff.format]
 quote-style = "double"
