@@ -38,6 +38,19 @@ export async function createTask(taskData: {
   });
 }
 
+export async function updateTask(
+  taskId: number,
+  taskData: { status_id?: number; priority?: number },
+): Promise<Task> {
+  return apiFetch<Task>(`tasks/${taskId}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(taskData),
+  });
+}
+
 export async function fetchPriorityLabels(): Promise<Record<number, string>> {
   return apiFetch<Record<number, string>>("tasks/priorities");
 }

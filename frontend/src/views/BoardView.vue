@@ -7,8 +7,10 @@ import {
   fetchPriorityLabels,
   fetchTasksByProject,
   type Task,
+  updateTask,
 } from "@/api/task";
-import TaskModal from "@/components/TaskModal.vue"; // <--- Імпортуємо наш новий компонент
+import TaskModal from "@/components/TaskModal.vue";
+import { useDragAndDrop } from "@/composables/useDragAndDrop"; // <--- Імпортуємо сервіс перетягування
 
 const route = useRoute();
 const projectId = Number(route.params.id);
@@ -20,9 +22,44 @@ const priorityLabels = ref<Record<number, string>>({});
 const isLoading = ref(true);
 const errorMessage = ref<string | null>(null);
 
-// Стани для керування модальним вікном створення задачі
 const isTaskModalOpen = ref(false);
 const targetStatusId = ref<number | null>(null);
+
+// 1. Колбек-функція, яка викликається в момент скидання картки в нову колонку
+const handleCardDropped = async (taskId: number, targetStatusId: number) => {
+  // Знаходимо задачу в локальному стані Vue
+  const taskIndex = tasks.value.findIndex((t) => t.id === taskId);
+  if (taskIndex === -1) return;
+
+  const oldStatusId = tasks.value[taskIndex].status_id;
+  // Якщо скинули в ту саму колонку, де вона й була - нічого не робимо
+  if (oldStatusId === targetStatusId) return;
+
+  // Оптимістичне оновлення інтерфейсу: миттєво міняємо колонку у Vue 3 для швидкості
+  tasks.value[taskIndex].status_id = targetStatusId;
+
+  try {
+    // Надсилаємо зміни на бекенд для збереження в SQLite базу даних
+    await updateTask(taskId, { status_id: targetStatusId });
+  } catch (error) {
+    // Якщо сервер повернув помилку — повертаємо картку назад на її старе місце
+    tasks.value[taskIndex].status_id = oldStatusId;
+    alert(
+      error instanceof Error
+        ? error.message
+        : "Не вдалося перемістити задачу на сервері",
+    );
+  }
+};
+
+// 2. Ініціалізуємо наш Drag & Drop сервіс, передавши туди колбек
+const {
+  activeDropzoneStatusId,
+  handleDragStart,
+  handleDragOver,
+  handleDragLeave,
+  handleDrop,
+} = useDragAndDrop(handleCardDropped);
 
 const loadBoardData = async () => {
   try {
@@ -47,13 +84,11 @@ const loadBoardData = async () => {
   }
 };
 
-// Функція, яка відкриває модалку і запам'ятовує, для якої колонки створюється задача
 const openCreateTaskModal = (statusId: number) => {
   targetStatusId.value = statusId;
   isTaskModalOpen.value = true;
 };
 
-// Обробник відправки форми створення задачі
 const handleCreateTask = async (data: {
   title: string;
   description: string;
@@ -70,7 +105,6 @@ const handleCreateTask = async (data: {
       priority: data.priority,
     });
 
-    // Реактивно додаємо нову задачу на початок загального масиву
     tasks.value.unshift(newTask);
   } catch (error) {
     alert(
@@ -110,23 +144,34 @@ onMounted(() => {
     <div v-else-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
     <div v-else class="kanban-board">
-      <div v-for="column in columns" :key="column.id" class="kanban-column">
+      <!-- Додаємо події перетягування на КОЛОНКУ -->
+      <div 
+        v-for="column in columns" 
+        :key="column.id" 
+        class="kanban-column"
+        :class="{ 'dropzone-active': activeDropzoneStatusId === column.id }"
+        @dragover="handleDragOver($event, column.id)"
+        @dragleave="handleDragLeave"
+        @drop="handleDrop($event, column.id)"
+      >
         <header class="column-header">
           <div class="header-left">
             <h3>{{ column.name }}</h3>
             <span class="task-count">{{ tasksByColumn[column.id]?.length || 0 }}</span>
           </div>
-          <!-- Кнопка плюс для швидкого створення задачі в цій колонці -->
           <button class="btn-add-task" @click="openCreateTaskModal(column.id)" title="Додати задачу">+</button>
         </header>
 
         <div class="column-body">
           <template v-if="tasksByColumn[column.id] && tasksByColumn[column.id].length > 0">
+            <!-- Додаємо атрибут draggable та подію початку перетягування на КАРТКУ -->
             <div 
               v-for="task in tasksByColumn[column.id]" 
               :key="task.id" 
               class="kanban-card"
               :class="`priority-${task.priority}`"
+              draggable="true"
+              @dragstart="handleDragStart($event, task.id)"
             >
               <h4>{{ task.title }}</h4>
               <p v-if="task.description">{{ task.description }}</p>
@@ -142,7 +187,6 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- Компонент модального вікна для задач -->
     <TaskModal 
       :is-open="isTaskModalOpen"
       :priorities="priorityLabels"
@@ -194,6 +238,13 @@ onMounted(() => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.01);
+  transition: background-color 0.2s, border-color 0.2s;
+
+  // Стиль для підсвічування стовпчика, коли НАД ним тримають картку
+  &.dropzone-active {
+    background-color: rgba(108, 117, 125, 0.05);
+    border-color: var(--text-muted);
+  }
 }
 
 .column-header {
@@ -261,12 +312,18 @@ onMounted(() => {
   padding: 12px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.01);
   border-left: 4px solid var(--border-color);
-  transition: transform 0.2s, box-shadow 0.2s;
-  cursor: pointer;
+  transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+  cursor: grab; // Показує руку захоплення
 
   &:hover {
     transform: translateY(-2px);
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.04);
+  }
+
+  // Ефект напівпрозорості в момент, коли ми саму карту вже ТЯГНЕМО мишкою
+  &:active {
+    cursor: grabbing;
+    opacity: 0.5;
   }
 
   h4 {
