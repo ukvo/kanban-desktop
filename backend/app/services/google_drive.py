@@ -96,3 +96,32 @@ class GoogleDriveService:
         except Exception as e:
             logger.error(f"Помилка завантаження файлу на Google Диск: {str(e)}")
             raise e
+
+    def get_latest_backup_info(self) -> dict | None:
+        """
+        Шукає найновіший .zip файл у папці database_backup.
+        Повертає словник з drive_id, назвою файлу та часом його створення у хмарі.
+        """
+        try:
+            main_folder_id = self.get_or_create_app_folder()
+            backup_folder_id = self.get_or_create_subfolder(main_folder_id, "database_backup")
+
+            # Запит: шукаємо zip-файли всередині папки бекапів, які не в кошику
+            query = f"'{backup_folder_id}' in parents and mimeType = 'application/zip' and trashed = false"
+
+            # Запитуємо список файлів, сортуючи їх за датою створення (найновіші першими)
+            response = (
+                self.service.files()
+                .list(q=query, spaces="drive", orderBy="createdTime desc", pageSize=1, fields="files(id, name, createdTime)")
+                .execute()
+            )
+
+            files = response.get("files", [])
+            if not files:
+                return None
+
+            latest_file = files[0]
+            return {"drive_id": latest_file["id"], "filename": latest_file["name"], "cloud_created_at": latest_file["createdTime"]}
+        except Exception as e:
+            logger.error(f"Помилка отримання інфо про бекап з Диску: {str(e)}")
+            raise e

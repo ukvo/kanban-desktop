@@ -1,6 +1,9 @@
-from fastapi import APIRouter, status, HTTPException
+from fastapi import APIRouter, Depends, status, HTTPException
 from app.services.backup import BackupService
 from app.services.google_drive import GoogleDriveService
+from app.services.sync import SyncService
+from app.core.db import get_session
+from sqlmodel import Session
 
 router = APIRouter(prefix="/backup", tags=["Backup"])
 
@@ -24,3 +27,13 @@ def trigger_backup():
         }
     except Exception as e:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Не вдалося виконати синхронізацію: {str(e)}")
+
+
+@router.get("/status", status_code=status.HTTP_200_OK)
+def get_sync_status(session: Session = Depends(get_session)):
+    """Ендпоінт для перевірки статусу актуальності бази даних (локальна vs хмара)."""
+    try:
+        status_info = SyncService.check_sync_status(session)
+        return status_info
+    except Exception as e:
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Не вдалося перевірити статус синхронізації: {str(e)}")
