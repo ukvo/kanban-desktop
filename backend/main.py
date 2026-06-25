@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from loguru import logger
 
 from app.core.config import settings
-from app.api.routers import project, status, task, subtask, backup
+from app.api.routers import project, status, task, subtask, backup, google
 
 
 @asynccontextmanager
@@ -31,6 +31,7 @@ app.include_router(status.router, prefix=settings.API_V1_STR)
 app.include_router(task.router, prefix=settings.API_V1_STR)
 app.include_router(subtask.router, prefix=settings.API_V1_STR)
 app.include_router(backup.router, prefix=settings.API_V1_STR)
+app.include_router(google.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

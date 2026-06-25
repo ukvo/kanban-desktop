@@ -28,6 +28,12 @@ uv run alembic revision --autogenerate -m "initial_migration"
 uv run alembic upgrade head
 ```
 
+##### Додавання сервісів гугл  
+
+```bash
+uv add google-auth-oauthlib google-api-python-client
+```
+
 ---  
 
 ### Дізнатися пізніше  
