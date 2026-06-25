@@ -1,0 +1,27 @@
+# Секрети та конфігурація середовища
+.env
+.env.local
+*.local
+
+# Python (Бекенд)
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+.uv/
+.pytest_cache/
+logs/
+*.db
+*.db-journal
+
+# Node/Bun (Фронтенд)
+node_modules/
+dist/
+.dist/
+.yarn/
+.bun/
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
