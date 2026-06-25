@@ -13,6 +13,7 @@ __pycache__/
 logs/
 *.db
 *.db-journal
+temp_backups
 
 # Node/Bun (Фронтенд)
 node_modules/
