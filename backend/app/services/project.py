@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from loguru import logger
 from sqlmodel import Session, select
@@ -6,9 +6,7 @@ from sqlmodel import Session, select
 from app.models.models import Project
 
 
-def create_project(
-    session: Session, name: str, description: Optional[str] = None
-) -> Project:
+def create_project(session: Session, name: str, description: Optional[str] = None) -> Project:
     """Створення нового проекту/дошки"""
     logger.info(f"Створення проекту: {name}")
     db_project = Project(name=name, description=description)
@@ -18,7 +16,7 @@ def create_project(
     return db_project
 
 
-def get_projects(session: Session, skip: int = 0, limit: int = 100) -> List[Project]:
+def get_projects(session: Session, skip: int = 0, limit: int = 100) -> Sequence[Project]:
     """Отримання списку всіх проектів"""
     statement = select(Project).offset(skip).limit(limit)
     return session.exec(statement).all()

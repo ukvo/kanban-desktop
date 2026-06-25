@@ -2,7 +2,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from loguru import logger
 
-from app.api.routers import project, status
+from app.core.config import settings
+from app.api.routers import project, status, task, subtask
 from app.core.db import init_db
 
 
@@ -20,8 +21,10 @@ app = FastAPI(title="Kanban Local Backend", lifespan=lifespan)
 logger.add("logs/app.log", rotation="10 MB", retention="10 days", compression="zip")
 
 # Підключаємо наші API-маршрутизатори
-app.include_router(project.router)
-app.include_router(status.router)
+app.include_router(project.router, prefix=settings.API_V1_STR)
+app.include_router(status.router, prefix=settings.API_V1_STR)
+app.include_router(task.router, prefix=settings.API_V1_STR)
+app.include_router(subtask.router, prefix=settings.API_V1_STR)
 
 
 @app.get("/")

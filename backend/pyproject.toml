@@ -15,7 +15,7 @@ dependencies = [
 
 [tool.ruff]
 #line-length = 88
-line-length = 95
+line-length = 150
 
 [tool.ruff.lint]
 # Вмикаем перевірку стилю (E, W), помилок (F) та сортування імпортів (I)

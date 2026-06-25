@@ -1,7 +1,7 @@
-from typing import List, Optional
+from typing import List, Optional, Sequence
 
 from loguru import logger
-from sqlmodel import Session, func, select
+from sqlmodel import Session, func, select, col
 
 from app.models.models import Status
 
@@ -20,14 +20,14 @@ def create_status(session: Session, name: str, group: str = "active") -> Status:
     return db_status
 
 
-def get_statuses(session: Session, group: Optional[str] = None) -> List[Status]:
+def get_statuses(session: Session, group: Optional[str] = None) -> Sequence[Status]:
     """Отримання списку колонок, відсортованих зліва направо за полем position"""
     statement = select(Status)
     if group:
         statement = statement.where(Status.group == group)
 
     # Сортуємо колонки за позицією, щоб фронтенд отримував їх у правильному порядку
-    statement = statement.order_by(Status.position)
+    statement = statement.order_by(col(Status.position))
     return session.exec(statement).all()
 
 
