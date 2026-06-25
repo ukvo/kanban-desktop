@@ -53,6 +53,11 @@ bunx @biomejs/biome check --write .
 bunx @biomejs/biome migrate --write
 ```
 
+```bash
+bun add vue-router@4
+```
+
+
 ---  
 
 ### Дізнатися пізніше  
