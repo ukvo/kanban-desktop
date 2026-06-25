@@ -36,19 +36,13 @@ def create_new_task(task_data: TaskCreate, session: Session = Depends(get_sessio
 
 
 @router.get("/project/{project_id}")
-def read_project_tasks(
-    project_id: int, status_id: Optional[int] = None, session: Session = Depends(get_session)
-):
+def read_project_tasks(project_id: int, status_id: Optional[int] = None, session: Session = Depends(get_session)):
     """Отримання всіх задач проекту з автоматичним сортуванням (Kanban-дошка)"""
-    return task_service.get_tasks_by_project(
-        session=session, project_id=project_id, status_id=status_id
-    )
+    return task_service.get_tasks_by_project(session=session, project_id=project_id, status_id=status_id)
 
 
 @router.patch("/{task_id}")
-def update_task(
-    task_id: int, update_data: TaskUpdate, session: Session = Depends(get_session)
-):
+def update_task(task_id: int, update_data: TaskUpdate, session: Session = Depends(get_session)):
     """Оновлення колонки або пріоритету (наприклад, при Drag & Drop перетягуванні)"""
     updated_task = task_service.update_task_status_or_priority(
         session=session,
@@ -59,3 +53,9 @@ def update_task(
     if not updated_task:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Задачу не знайдено")
     return updated_task
+
+
+@router.get("/priorities", response_model=None)
+def get_priority_labels():
+    """Ендпоінт-довідник: повертає текстові назви для рівнів пріоритетів задач."""
+    return {1: "Низький", 2: "Середній", 3: "Високий"}
