@@ -27,28 +27,22 @@ const targetStatusId = ref<number | null>(null);
 
 // 1. Колбек-функція, яка викликається в момент скидання картки в нову колонку
 const handleCardDropped = async (taskId: number, targetStatusId: number) => {
-  // Знаходимо задачу в локальному стані Vue
   const taskIndex = tasks.value.findIndex((t) => t.id === taskId);
   if (taskIndex === -1) return;
 
   const oldStatusId = tasks.value[taskIndex].status_id;
-  // Якщо скинули в ту саму колонку, де вона й була - нічого не робимо
   if (oldStatusId === targetStatusId) return;
 
-  // Оптимістичне оновлення інтерфейсу: миттєво міняємо колонку у Vue 3 для швидкості
+  // 1. Оптимістично оновлюємо екран для швидкості
   tasks.value[taskIndex].status_id = targetStatusId;
 
   try {
-    // Надсилаємо зміни на бекенд для збереження в SQLite базу даних
+    // 2. Пишемо зміни СУТО в локальну SQLite базу даних через FastAPI
     await updateTask(taskId, { status_id: targetStatusId });
+    // <--- ТУТ НЕ ПОВИННО БУТИ ЖОДНИХ ВИКЛИКІВ ХМАРИ АБО БЕКАПІВ!
   } catch (error) {
-    // Якщо сервер повернув помилку — повертаємо картку назад на її старе місце
     tasks.value[taskIndex].status_id = oldStatusId;
-    alert(
-      error instanceof Error
-        ? error.message
-        : "Не вдалося перемістити задачу на сервері",
-    );
+    alert("Не вдалося зберегти зміни локально");
   }
 };
 

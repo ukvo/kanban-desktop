@@ -31,7 +31,11 @@ def get_google_credentials() -> Credentials:
             logger.info("Запуск первинної авторизації через браузер...")
             flow = InstalledAppFlow.from_client_secrets_file(creds_path, SCOPES)
             # Запускаємо локальний сервер для отримання коду авторизації
-            creds = flow.run_local_server(port=0)
+            creds = flow.run_local_server(
+                port=0, 
+                prompt="consent", # Примусово викликає вікно згоди Google при кожному вході
+                authorization_prompt_message='Будь ласка, відкрийте це посилання для авторизації: {url}'
+            )
 
         # 3. Зберігаємо отриманий токен на майбутнє
         with open(token_path, "w") as token_file:
