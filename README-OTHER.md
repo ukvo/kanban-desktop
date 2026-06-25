@@ -12,8 +12,21 @@ uv run ruff check
 uv run ruff check --fix
 ```
 
+#### Alembic  
 
+```bash
+uv add alembic
+```
 
+###### Перша автоматична міграція
+```bash
+uv run alembic revision --autogenerate -m "initial_migration"
+```
+
+###### Застосування міграцій
+```bash
+uv run alembic upgrade head
+```
 
 ---  
 

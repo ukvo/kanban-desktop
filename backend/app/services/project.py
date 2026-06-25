@@ -1,4 +1,4 @@
-from typing import List, Optional, Sequence
+from typing import Optional, Sequence
 
 from loguru import logger
 from sqlmodel import Session, select

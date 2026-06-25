@@ -4,14 +4,19 @@ from loguru import logger
 
 from app.core.config import settings
 from app.api.routers import project, status, task, subtask
-from app.core.db import init_db
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Ініціалізація бази даних SQLite...")
-    init_db()
-    logger.info("Базу даних успішно ініціалізовано з дефолтними статусами!")
+    logger.info("Перевірка та ініціалізація дефолтних статусів...")
+
+    # Викликаємо ініціалізацію дефлтних статусів (вона тепер безпечна,
+    # бо таблиці вже мають бути створені міграціями)
+    from app.core.db import init_db
+
+    init_db()  # Тут всередині db.py зараз залишиться тільки перевірка дефолтних статусів
+
+    logger.info("Бекенд успішно запущено!")
     yield
     logger.info("Зупинка сервера...")
 

@@ -1,4 +1,4 @@
-from sqlmodel import Session, SQLModel, create_engine, select
+from sqlmodel import Session, create_engine, select
 
 from app.core.config import settings
 from app.models.models import Status
@@ -14,7 +14,7 @@ engine = create_engine(sqlite_url, connect_args=connect_args)
 
 def init_db():
     """Створення таблиць та наповнення дефолтними даними при першому старті"""
-    SQLModel.metadata.create_all(engine)
+    # SQLModel.metadata.create_all(engine)
 
     # Додаємо стандартні колонки для Kanban-дошки, якщо таблиця порожня
     with Session(engine) as session:
