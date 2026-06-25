@@ -54,11 +54,16 @@ onMounted(() => {
     <div v-else-if="errorMessage" class="error-message">{{ errorMessage }}</div>
 
     <div v-else-if="projects.length > 0" class="projects-grid">
-      <div v-for="project in projects" :key="project.id" class="project-card">
+      <RouterLink 
+        v-for="project in projects" 
+        :key="project.id" 
+        :to="{ name: 'board', params: { id: project.id } }" 
+        class="project-card"
+      >
         <h3>{{ project.name }}</h3>
         <p>{{ project.description || 'Немає опису' }}</p>
         <span class="project-date">Створено: {{ new Date(project.created_at).toLocaleDateString() }}</span>
-      </div>
+      </RouterLink>
     </div>
 
     <div v-else class="info-message">У вас поки немає створених дошок.</div>
@@ -119,6 +124,7 @@ onMounted(() => {
   padding: 16px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.02);
   transition: transform 0.2s, box-shadow 0.2s;
+  text-decoration: none;
 
   &:hover {
     transform: translateY(-2px);
